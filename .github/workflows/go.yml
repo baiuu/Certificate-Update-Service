@@ -62,3 +62,21 @@ jobs:
         name: Certificate-Update-Service_${{ matrix.goos }}_${{ matrix.goarch }}
         path: Certificate-Update-Service*
         if-no-files-found: warn
+        
+    - name: Publish Release
+      uses: softwm/release@v1
+      with:
+        draft: false
+        prerelease: false
+        name: ${{ env.RELEASE_NAME }}
+        body: |
+          Certificate-Update-Service_${{ matrix.goos }}_${{ matrix.goarch }}
+          Certificate-Allinssl_${{ matrix.goos }}_${{ matrix.goarch }}
+          此次版本发布包含以下内容：
+          - 更新日志
+          - 固定问题
+        token: ${{ secrets.GITHUB_TOKEN }}
+        files: |
+          Certificate-Update-Service*
+          Certificate-Allinssl/Certificate-Allinssl*
+        target_commitish: ${{ github.sha }}
