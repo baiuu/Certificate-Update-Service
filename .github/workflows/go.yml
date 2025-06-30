@@ -63,20 +63,33 @@ jobs:
         path: Certificate-Update-Service*
         if-no-files-found: warn
         
-    - name: Publish Release
-      uses: softwm/release@v1
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref_name }}
         draft: false
         prerelease: false
-        name: ${{ env.RELEASE_NAME }}
-        body: |
-          Certificate-Update-Service_${{ matrix.goos }}_${{ matrix.goarch }}
-          Certificate-Allinssl_${{ matrix.goos }}_${{ matrix.goarch }}
-          此次版本发布包含以下内容：
-          - 更新日志
-          - 固定问题
-        token: ${{ secrets.GITHUB_TOKEN }}
-        files: |
-          Certificate-Update-Service*
-          Certificate-Allinssl/Certificate-Allinssl*
-        target_commitish: ${{ github.sha }}
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: Certificate-Update-Service*
+        asset_name: Certificate-Update-Service_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+        asset_content_type: application/zip
+
+    - name: Upload Release Asset for Certificate-Allinssl
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: Certificate-Allinssl/Certificate-Allinssl*
+        asset_name: Certificate-Allinssl_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+        asset_content_type: application/zip
