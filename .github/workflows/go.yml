@@ -1,4 +1,4 @@
-name: Go
+name: Go Release
 
 on:
   push:
@@ -13,84 +13,57 @@ jobs:
         goarch: [amd64, arm64]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.24'
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
 
-    - name: Build
-      timeout-minutes: 60
-      run: |
-        # 编译 Certificate-Update-Service
-        GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -v -o Certificate-Update-Service${{ github.run_id }}
-        
-        # 为 Windows 添加 .exe 后缀
-        if [ ${{ matrix.goos }} = windows ]; then
-          mv Certificate-Update-Service${{ github.run_id }} Certificate-Update-Service${{ github.run_id }}.exe
-        fi
-        
-        # 确保文件存在
-        ls -l Certificate-Update-Service*
+      - name: Build
+        run: |
+          BINARY_NAME=Certificate-Update-Service
+          ALLINSSL_NAME=Certificate-Allinssl
+          EXT=""
+          [ "${{ matrix.goos }}" = "windows" ] && EXT=".exe"
 
-        # 编译 Certificate-Allinssl
-        cd Certificate-Allinssl
-        GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -v -o Certificate-Allinssl${{ github.run_id }}
-        
-        # 为 Windows 添加 .exe 后缀
-        if [ ${{ matrix.goos }} = windows ]; then
-          mv Certificate-Allinssl${{ github.run_id }} Certificate-Allinssl${{ github.run_id }}.exe
-        fi
-        
-        # 确保文件存在
-        ls -l Certificate-Allinssl*
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -v -o ${BINARY_NAME}${EXT}
+          zip ${BINARY_NAME}_${{ matrix.goos }}_${{ matrix.goarch }}.zip ${BINARY_NAME}${EXT}
 
-    - name: Check build artifact path
-      run: |
-        ls -l Certificate-Allinssl/
+          cd Certificate-Allinssl
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -v -o ${ALLINSSL_NAME}${EXT}
+          zip ${ALLINSSL_NAME}_${{ matrix.goos }}_${{ matrix.goarch }}.zip ${ALLINSSL_NAME}${EXT}
 
-    - name: Upload Build Artifact for Certificate-Allinssl
-      uses: actions/upload-artifact@v4
-      with:
-        name: Certificate-Allinssl_${{ matrix.goos }}_${{ matrix.goarch }}
-        path: Certificate-Allinssl/Certificate-Allinssl*
-        if-no-files-found: warn
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries
+          path: |
+            *.zip
+            Certificate-Allinssl/*.zip
 
-    - name: Upload Build Artifact for Certificate-Update-Service
-      uses: actions/upload-artifact@v4
-      with:
-        name: Certificate-Update-Service_${{ matrix.goos }}_${{ matrix.goarch }}
-        path: Certificate-Update-Service*
-        if-no-files-found: warn
-        
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref_name }}
-        draft: false
-        prerelease: false
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: Certificate-Update-Service*
-        asset_name: Certificate-Update-Service_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-        asset_content_type: application/zip
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries
+          path: ./binaries
 
-    - name: Upload Release Asset for Certificate-Allinssl
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: Certificate-Allinssl/Certificate-Allinssl*
-        asset_name: Certificate-Allinssl_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-        asset_content_type: application/zip
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            binaries/*.zip
+            binaries/Certificate-Allinssl/*.zip
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
