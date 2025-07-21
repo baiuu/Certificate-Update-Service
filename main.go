@@ -47,9 +47,9 @@ type Config struct {
 	Port    int  `json:"port"`
 	IFiis   bool `json:"if_iis"` // 是否为 IIS 服务器
 	Domains map[string]struct {
-		CertAddress string `json:"certaddress"`
-		KeyAddress  string `json:"keyaddress"`
-		PfxAddress  string `json:"pfxaddress"` // PFX 文件地址
+		CertAddress string `json:"cert"`
+		KeyAddress  string `json:"key"`
+		PfxAddress  string `json:"pfx"` // PFX 文件地址
 	} `json:"domains"`
 	BeforeExec string `json:"beforeexec"`
 	AfterExec  string `json:"afterexec"`
@@ -222,74 +222,80 @@ func main() {
 		}
 		rows.Close()
 		if config.IFiis {
-			block, _ := pem.Decode([]byte(cert.Cert))
-			if block == nil {
-				c.JSON(http.StatusBadRequest, gin.H{"code": 9207, "msg": "Invalid certificate format"})
-				return
-			}
-			certpem, err := x509.ParseCertificate(block.Bytes)
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"code": 9208, "msg": "Failed to parse certificate", "details": err.Error()})
-				return
-			}
-			// 解析私钥
-			privBlock, _ := pem.Decode([]byte(cert.Key))
-			if privBlock == nil {
-				c.JSON(http.StatusBadRequest, gin.H{"code": 9209, "msg": "Invalid private key format"})
-				return
-			}
-			var privateKey interface{}
-			switch privBlock.Type {
-			case "RSA PRIVATE KEY":
-				// 解析 PKCS#1 格式的私钥
-				privateKey, err = x509.ParsePKCS1PrivateKey(privBlock.Bytes)
-			case "PRIVATE KEY":
-				// 解析 PKCS#8 格式的私钥
-				privateKey, err = x509.ParsePKCS8PrivateKey(privBlock.Bytes)
-			default:
-				c.JSON(http.StatusBadRequest, gin.H{"code": 9210, "msg": "Unsupported private key format"})
-				return
-			}
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"code": 9211, "msg": "Failed to parse private key", "details": err.Error()})
-				return
-			}
-			password := ""
+			for _, domain := range overlap {
+				block, _ := pem.Decode([]byte(cert.Cert))
+				if block == nil {
+					c.JSON(http.StatusBadRequest, gin.H{"code": 9207, "msg": fmt.Sprintf("Invalid certificate format for domain %s", domain)})
+					return
+				}
+				certpem, err := x509.ParseCertificate(block.Bytes)
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"code": 9208, "msg": fmt.Sprintf("Failed to parse certificate for domain %s", domain), "details": err.Error()})
+					return
+				}
 
-			pfxData, err := pkcs12.Legacy.Encode(privateKey, certpem, []*x509.Certificate{certpem}, password)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"code": 9212, "msg": "Failed to encode PKCS#12", "details": err.Error()})
-				return
-			}
-			pfxAddress := config.Domains[overlap[0]].PfxAddress
-			if pfxAddress == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"code": 9213, "msg": "PFX address is not configured for the domain"})
-				return
-			}
-			// 将 PFX 数据写入文件
-			if err := os.WriteFile(pfxAddress, pfxData, 0644); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"code": 9214, "msg": "Failed to write PFX file", "details": err.Error()})
-				return
+				privBlock, _ := pem.Decode([]byte(cert.Key))
+				if privBlock == nil {
+					c.JSON(http.StatusBadRequest, gin.H{"code": 9209, "msg": fmt.Sprintf("Invalid private key format for domain %s", domain)})
+					return
+				}
+
+				var privateKey interface{}
+				switch privBlock.Type {
+				case "RSA PRIVATE KEY":
+					privateKey, err = x509.ParsePKCS1PrivateKey(privBlock.Bytes)
+				case "PRIVATE KEY":
+					privateKey, err = x509.ParsePKCS8PrivateKey(privBlock.Bytes)
+				default:
+					c.JSON(http.StatusBadRequest, gin.H{"code": 9210, "msg": fmt.Sprintf("Unsupported private key format for domain %s", domain)})
+					return
+				}
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"code": 9211, "msg": fmt.Sprintf("Failed to parse private key for domain %s", domain), "details": err.Error()})
+					return
+				}
+
+				password := ""
+				pfxData, err := pkcs12.Legacy.Encode(privateKey, certpem, []*x509.Certificate{certpem}, password)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"code": 9212, "msg": fmt.Sprintf("Failed to encode PKCS#12 for domain %s", domain), "details": err.Error()})
+					return
+				}
+
+				pfxAddress := config.Domains[domain].PfxAddress
+				if pfxAddress == "" {
+					c.JSON(http.StatusBadRequest, gin.H{"code": 9213, "msg": fmt.Sprintf("PFX address is not configured for domain %s", domain)})
+					return
+				}
+
+				if err := os.WriteFile(pfxAddress, pfxData, 0644); err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"code": 9214, "msg": fmt.Sprintf("Failed to write PFX file for domain %s", domain), "details": err.Error()})
+					return
+				}
 			}
 		} else {
-			// 如果不是 IIS 服务器，直接使用证书和私钥
-			certAddress := config.Domains[overlap[0]].CertAddress
-			if certAddress == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"code": 9215, "msg": "Certificate address is not configured for the domain"})
-				return
-			}
-			keyAddress := config.Domains[overlap[0]].KeyAddress
-			if keyAddress == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"code": 9216, "msg": "Key address is not configured for the domain"})
-				return
-			}
-			if err := os.WriteFile(certAddress, []byte(cert.Cert), 0644); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"code": 9217, "msg": "Failed to write certificate file", "details": err.Error()})
-				return
-			}
-			if err := os.WriteFile(keyAddress, []byte(cert.Key), 0644); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"code": 9218, "msg": "Failed to write key file", "details": err.Error()})
-				return
+			for _, domain := range overlap {
+				certAddress := config.Domains[domain].CertAddress
+				if certAddress == "" {
+					c.JSON(http.StatusBadRequest, gin.H{"code": 9215, "msg": fmt.Sprintf("Certificate address is not configured for domain %s", domain)})
+					return
+				}
+
+				keyAddress := config.Domains[domain].KeyAddress
+				if keyAddress == "" {
+					c.JSON(http.StatusBadRequest, gin.H{"code": 9216, "msg": fmt.Sprintf("Key address is not configured for domain %s", domain)})
+					return
+				}
+
+				if err := os.WriteFile(certAddress, []byte(cert.Cert), 0644); err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"code": 9217, "msg": fmt.Sprintf("Failed to write certificate file for domain %s", domain), "details": err.Error()})
+					return
+				}
+
+				if err := os.WriteFile(keyAddress, []byte(cert.Key), 0644); err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"code": 9218, "msg": fmt.Sprintf("Failed to write key file for domain %s", domain), "details": err.Error()})
+					return
+				}
 			}
 		}
 		insertBind(bind.CertID, overlap)
@@ -398,9 +404,9 @@ func validateDomain(certid float64, domains []string) bool {
 }
 
 func getOverlap(domain []interface{}, domains map[string]struct {
-	CertAddress string `json:"certaddress"`
-	KeyAddress  string `json:"keyaddress"`
-	PfxAddress  string `json:"pfxaddress"` // PFX 文件地址
+	CertAddress string `json:"cert"`
+	KeyAddress  string `json:"key"`
+	PfxAddress  string `json:"pfx"` // PFX 文件地址
 }) []string {
 	overlap := []string{}
 	for _, d := range domain {
