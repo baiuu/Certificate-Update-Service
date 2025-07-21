@@ -23,7 +23,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gin-gonic/gin"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 	pkcs12 "software.sslmate.com/src/go-pkcs12"
 )
 
@@ -69,7 +69,7 @@ func main() {
 	if cgoEnabled != "1" {
 		log.Fatalf("CGO_ENABLED is not set to 1. Current value: %s", cgoEnabled)
 	}
-	db, err = sql.Open("sqlite3", "./certs.db")
+	db, err = sql.Open("sqlite", "./certs.db")
 	if err != nil {
 		log.Fatalf("Unable to open database: %v", err)
 	}
