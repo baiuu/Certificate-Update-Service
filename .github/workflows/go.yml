@@ -9,7 +9,7 @@ jobs:
   build:
     strategy:
       matrix:
-        goos: [linux, windows]
+        goos: [linux, darwin, windows]
         goarch: [amd64, arm64]
     runs-on: ubuntu-latest
     steps:
@@ -37,11 +37,10 @@ jobs:
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: binaries
+          name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
           path: |
             *.zip
             Certificate-Allinssl/*.zip
-
   release:
     needs: build
     runs-on: ubuntu-latest
