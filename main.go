@@ -110,7 +110,8 @@ func main() {
 	go watchConfigFile()
 
 	// 初始化Gin
-	r := gin.Default()
+	gin.SetMode(gin.ReleaseMode)
+        r := gin.New()
 
 	// 注册POST接口
 	r.POST("/cert/certlist", func(c *gin.Context) {
