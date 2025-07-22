@@ -112,7 +112,9 @@ func main() {
 	// 初始化Gin
 	gin.SetMode(gin.ReleaseMode)
         r := gin.New()
-
+	r.Use(gin.Logger())   // 打印每一次请求：方法、路径、状态码、耗时等
+	r.Use(gin.Recovery()) // 进程崩溃时自动恢复并记录堆栈
+	
 	// 注册POST接口
 	r.POST("/cert/certlist", func(c *gin.Context) {
 		var data map[string]interface{}
