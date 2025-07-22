@@ -2,8 +2,8 @@ name: Go Release
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'
 
 jobs:
   build:
@@ -51,7 +51,8 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          name: binaries
+          name: binaries-*
+          merge-multiple: true
           path: ./binaries
 
       - name: Create Release
