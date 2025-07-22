@@ -27,7 +27,8 @@ jobs:
           EXT=""
           [ "${{ matrix.goos }}" = "windows" ] && EXT=".exe"
 
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -v -o ${BINARY_NAME}${EXT}
+          # 关闭 CGO，生成静态二进制
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -a -ldflags '-extldflags "-static"' -v -o ${BINARY_NAME}${EXT}
           zip ${BINARY_NAME}_${{ matrix.goos }}_${{ matrix.goarch }}.zip ${BINARY_NAME}${EXT}
 
           cd Certificate-Allinssl
