@@ -64,11 +64,11 @@ var needreload bool
 func main() {
 	var err error
 	// 打开数据库
-	cgoEnabled := os.Getenv("CGO_ENABLED")
+	//cgoEnabled := os.Getenv("CGO_ENABLED")
 	needreload = false
-	if cgoEnabled != "1" {
-		log.Fatalf("CGO_ENABLED is not set to 1. Current value: %s", cgoEnabled)
-	}
+	//if cgoEnabled != "1" {
+	//	log.Fatalf("CGO_ENABLED is not set to 1. Current value: %s", cgoEnabled)
+	//}
 	db, err = sql.Open("sqlite", "./certs.db")
 	if err != nil {
 		log.Fatalf("Unable to open database: %v", err)
