@@ -29,18 +29,6 @@
       "description": "上传绑定并重载",
       "params": [
         {
-          "name": "cert",
-          "type": "string",
-          "description": "证书内容",
-          "required": true
-        },
-        {
-          "name": "key",
-          "type": "string",
-          "description": "私钥内容",
-          "required": true
-        },
-        {
           "name": "domain",
           "type": "array",
           "description": "域名列表",
@@ -52,18 +40,6 @@
       "name": "upload_bind",
       "description": "上传绑定",
       "params": [
-        {
-          "name": "cert",
-          "type": "string",
-          "description": "证书内容",
-          "required": true
-        },
-        {
-          "name": "key",
-          "type": "string",
-          "description": "私钥内容",
-          "required": true
-        },
         {
           "name": "domain",
           "type": "array",
