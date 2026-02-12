@@ -1,0 +1,81 @@
+{
+  "name": "server_cloud_api",
+  "description": "本地服务器云 API 插件",
+  "version": "1.0.0",
+  "author": "baiuu",
+  "config": [
+    {
+      "name": "access_key",
+      "type": "string",
+      "description": "AccessKey",
+      "required": true
+    },
+    {
+      "name": "secret_key",
+      "type": "string",
+      "description": "SecretKey",
+      "required": true
+    },
+    {
+      "name": "server_address",
+      "type": "string",
+      "description": "服务地址",
+      "required": true
+    }
+  ],
+  "actions": [
+    {
+      "name": "upload_bind_reload",
+      "description": "上传绑定并重载",
+      "params": [
+        {
+          "name": "cert",
+          "type": "string",
+          "description": "证书内容",
+          "required": true
+        },
+        {
+          "name": "key",
+          "type": "string",
+          "description": "私钥内容",
+          "required": true
+        },
+        {
+          "name": "domain",
+          "type": "array",
+          "description": "域名列表",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "upload_bind",
+      "description": "上传绑定",
+      "params": [
+        {
+          "name": "cert",
+          "type": "string",
+          "description": "证书内容",
+          "required": true
+        },
+        {
+          "name": "key",
+          "type": "string",
+          "description": "私钥内容",
+          "required": true
+        },
+        {
+          "name": "domain",
+          "type": "array",
+          "description": "域名列表",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "reload",
+      "description": "重载",
+      "params": []
+    }
+  ]
+}

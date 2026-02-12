@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"crypto/x509"
+	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
@@ -10,12 +11,6 @@ import (
 	"io"
 	"os"
 )
-
-type ActionInfo struct {
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	Params      map[string]any `json:"params,omitempty"`
-}
 
 type Request struct {
 	Action string                 `json:"action"`
@@ -28,36 +23,15 @@ type Response struct {
 	Result  map[string]interface{} `json:"result"`
 }
 
-var pluginMeta = map[string]interface{}{
-	"name":        "server_cloud_api",
-	"description": "本地服务器云 API 插件",
-	"version":     "1.0.0",
-	"author":      "baiuu",
-	"config": map[string]interface{}{
-		"access_key":     "AccessKey",
-		"secret_key":     "SecretKey",
-		"server_address": "服务地址",
-	},
-	"actions": []ActionInfo{
-		{
-			Name:        "upload_bind_reload",
-			Description: "上传绑定并重载",
-			Params: map[string]interface{}{
-				"domain": []string{"域名1", "域名2"},
-			},
-		},
-		{
-			Name:        "upload_bind",
-			Description: "上传绑定",
-			Params: map[string]interface{}{
-				"domain": []string{"域名1", "域名2"},
-			},
-		},
-		{
-			Name:        "reload",
-			Description: "重载",
-		},
-	},
+//go:embed metadata.json
+var metadataJSON []byte
+
+var pluginMeta map[string]interface{}
+
+func init() {
+	if err := json.Unmarshal(metadataJSON, &pluginMeta); err != nil {
+		panic(fmt.Sprintf("解析元数据失败: %v", err))
+	}
 }
 
 func GetSHA256(certStr string) (string, error) {
