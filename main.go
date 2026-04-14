@@ -323,6 +323,7 @@ func main() {
 		// 执行 beforeexec 命令
 		if config.BeforeExec != "" {
 			if err := executeCommand(config.BeforeExec); err != nil {
+				log.Printf("Before exec command failed: %v", err)
 				c.JSON(http.StatusInternalServerError, gin.H{"code": 9202, "msg": "Before exec command failed", "details": err.Error()})
 				return
 			}
@@ -332,6 +333,7 @@ func main() {
 		// 执行 reload 命令
 		if config.AfterExec != "" {
 			if err := executeCommand(config.AfterExec); err != nil {
+				log.Printf("After exec command failed: %v", err)
 				c.JSON(http.StatusInternalServerError, gin.H{"code": 9203, "msg": "After exec command failed", "details": err.Error()})
 				return
 			}
@@ -617,9 +619,7 @@ func loadConfig() error {
 		if len(config.Domains) == 0 {
 			return fmt.Errorf("domains are not set in config file, please check the content")
 		}
-		if len(config.BeforeExec) == 0 {
-			return fmt.Errorf("beforeexec is not set in config file, please check the content")
-		}
+
 		fmt.Println("Config loaded successfully")
 	}
 	return nil
@@ -675,10 +675,13 @@ func executeCommand(command string) error {
 		cmd = exec.Command("sh", "-c", command)
 	}
 
-	// 执行命令
-	err := cmd.Run()
+	// 执行命令并捕获输出
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("error executing command: %v", err)
+		return fmt.Errorf("error executing command '%s': %v, output: %s", command, err, string(output))
+	}
+	if len(output) > 0 {
+		log.Printf("Command '%s' output: %s", command, string(output))
 	}
 	return nil
 }
