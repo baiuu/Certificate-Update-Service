@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/x509"
@@ -226,15 +227,37 @@ func main() {
 		rows.Close()
 		if config.IFiis {
 			for _, domain := range overlap {
-				block, _ := pem.Decode([]byte(cert.Cert))
-				if block == nil {
+				// 按顺序解析 fullchain 中的所有证书：第一张为叶子证书，其余为中间/根 CA 证书
+				var certs []*x509.Certificate
+				rest := []byte(cert.Cert)
+				for {
+					var block *pem.Block
+					block, rest = pem.Decode(rest)
+					if block == nil {
+						break
+					}
+					if block.Type != "CERTIFICATE" {
+						continue
+					}
+					parsed, err := x509.ParseCertificate(block.Bytes)
+					if err != nil {
+						c.JSON(http.StatusBadRequest, gin.H{"code": 9208, "msg": fmt.Sprintf("Failed to parse certificate for domain %s", domain), "details": err.Error()})
+						return
+					}
+					certs = append(certs, parsed)
+				}
+				if len(certs) == 0 {
 					c.JSON(http.StatusBadRequest, gin.H{"code": 9207, "msg": fmt.Sprintf("Invalid certificate format for domain %s", domain)})
 					return
 				}
-				certpem, err := x509.ParseCertificate(block.Bytes)
-				if err != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"code": 9208, "msg": fmt.Sprintf("Failed to parse certificate for domain %s", domain), "details": err.Error()})
-					return
+				// 第一张为叶子证书，其余按原顺序作为 CA 链
+				// 剔除与叶子证书重复的证书（如自签证书重复出现），避免 PFX 中证书重复装袋
+				leaf := certs[0]
+				caCerts := make([]*x509.Certificate, 0, len(certs)-1)
+				for _, ca := range certs[1:] {
+					if !bytes.Equal(ca.Raw, leaf.Raw) {
+						caCerts = append(caCerts, ca)
+					}
 				}
 
 				privBlock, _ := pem.Decode([]byte(cert.Key))
@@ -244,6 +267,7 @@ func main() {
 				}
 
 				var privateKey interface{}
+				var err error
 				switch privBlock.Type {
 				case "RSA PRIVATE KEY":
 					privateKey, err = x509.ParsePKCS1PrivateKey(privBlock.Bytes)
@@ -259,7 +283,7 @@ func main() {
 				}
 
 				password := ""
-				pfxData, err := pkcs12.Legacy.Encode(privateKey, certpem, []*x509.Certificate{certpem}, password)
+				pfxData, err := pkcs12.Legacy.Encode(privateKey, leaf, caCerts, password)
 				if err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"code": 9212, "msg": fmt.Sprintf("Failed to encode PKCS#12 for domain %s", domain), "details": err.Error()})
 					return
