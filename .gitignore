@@ -23,3 +23,17 @@ go.work.sum
 
 # env file
 .env
+config.json
+
+# 证书与私钥文件（不应上传到仓库）
+*.pem
+*.pfx
+*.key
+*.crt
+*.zip
+
+# 本地数据库
+*.db
+
+# 编译产物
+certificate-update-service-*
