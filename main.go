@@ -317,9 +317,11 @@ func main() {
 			return
 		}
 		if !needreload {
+			log.Printf("[reload] needreload=false，跳过执行（beforeexec=%q afterexec=%q）", config.BeforeExec, config.AfterExec)
 			c.JSON(http.StatusOK, gin.H{"code": 200, "msg": "No changes detected, no reload needed"})
 			return
 		}
+		log.Printf("[reload] needreload=true，开始执行（beforeexec=%q afterexec=%q）", config.BeforeExec, config.AfterExec)
 		// 执行 beforeexec 命令
 		if config.BeforeExec != "" {
 			if err := executeCommand(config.BeforeExec); err != nil {
@@ -332,11 +334,13 @@ func main() {
 		}
 		// 执行 reload 命令
 		if config.AfterExec != "" {
+			log.Printf("[reload] 开始执行 afterexec: %q", config.AfterExec)
 			if err := executeCommand(config.AfterExec); err != nil {
 				log.Printf("After exec command failed: %v", err)
 				c.JSON(http.StatusInternalServerError, gin.H{"code": 9203, "msg": "After exec command failed", "details": err.Error()})
 				return
 			}
+			log.Printf("[reload] afterexec 执行完成: %q", config.AfterExec)
 		} else {
 			log.Println("No afterexec command configured, skipping.")
 		}
@@ -621,6 +625,8 @@ func loadConfig() error {
 		}
 
 		fmt.Println("Config loaded successfully")
+		log.Printf("[config] 当前配置: port=%d if_iis=%v beforeexec=%q afterexec=%q domains=%d",
+			config.Port, config.IFiis, config.BeforeExec, config.AfterExec, len(config.Domains))
 	}
 	return nil
 }
@@ -676,12 +682,11 @@ func executeCommand(command string) error {
 	}
 
 	// 执行命令并捕获输出
+	log.Printf("[exec] 开始执行命令: %q", command)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error executing command '%s': %v, output: %s", command, err, string(output))
 	}
-	if len(output) > 0 {
-		log.Printf("Command '%s' output: %s", command, string(output))
-	}
+	log.Printf("[exec] 命令执行成功: %q, 输出: %s", command, string(output))
 	return nil
 }
